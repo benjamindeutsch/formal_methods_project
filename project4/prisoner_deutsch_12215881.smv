@@ -1,0 +1,127 @@
+-- My Strategy:
+-- Prisoner 1 is the only prisoner who turns the light off.
+-- The other Prisoners do the following:
+--      -If the light is on they leave it on.
+--      -If the light is off and they never turned the light on before, then they turn it on.
+--
+-- Once Prisoner 1 turned the light off N-2 times and enters the room where the light is turned on,
+-- they know that all prisoners have to have visited the room, since the other N-1 prisoners turn the
+-- light on only once. Therefore, then Prisoner 1 makes the assertion.
+
+MODULE prisoner (id, light, pick, picking, N)
+VAR
+    state : {idle, visiting, switching, asserting};
+    c : 0..(N+(-1)); -- counts how many times the prisoner encountered a switched-on light
+    switched : boolean; -- indicates whether the prisoner has already switched the light
+ASSIGN
+    init (state) := idle;
+    next (state) :=
+        case
+            -- Once somebody asserts, the game is over and they stay in that state
+            state = asserting : asserting;
+            -- The Warden only picks every other round
+            -- "picking" indicates whether the Warden picked this round
+            pick = id & picking = TRUE : visiting;
+            id = 1 & state = visiting & light = TRUE & c = (N+(-2)) : asserting;
+            id = 1 & state = visiting & light = TRUE : switching;
+            id = 1 & state = visiting & light = FALSE : idle;
+            state = visiting & switched = FALSE & light = FALSE : switching;
+            TRUE : idle;
+        esac;
+    init (switched) := FALSE;
+    next (switched) := 
+        case
+            id != 1 & state = switching : TRUE;
+            TRUE : switched;
+        esac;
+    init (c) := 0;
+    next (c) :=
+        case
+            id = 1 & state = visiting & light = TRUE : (c + 1) mod N;
+            TRUE : c;
+        esac;
+--FAIRNESS pick = id
+
+MODULE main
+DEFINE
+    N := 5;
+    switch := (prisoner1.state = switching) |
+        (prisoner2.state = switching) |
+        (prisoner3.state = switching) |
+        (prisoner4.state = switching) |
+        (prisoner5.state = switching);
+    assert := (prisoner1.state = asserting) |
+        (prisoner2.state = asserting) |
+        (prisoner3.state = asserting) |
+        (prisoner4.state = asserting) |
+        (prisoner5.state = asserting);
+    moreThanOneVisiting := (prisoner1.state = visiting & prisoner2.state = visiting) |
+        (prisoner1.state = visiting & prisoner3.state = visiting) |
+        (prisoner1.state = visiting & prisoner4.state = visiting) |
+        (prisoner1.state = visiting & prisoner5.state = visiting) |
+        (prisoner2.state = visiting & prisoner3.state = visiting) |
+        (prisoner2.state = visiting & prisoner4.state = visiting) |
+        (prisoner2.state = visiting & prisoner5.state = visiting) |
+        (prisoner3.state = visiting & prisoner4.state = visiting) |
+        (prisoner3.state = visiting & prisoner5.state = visiting) |
+        (prisoner4.state = visiting & prisoner5.state = visiting);
+VAR
+    light : boolean;
+    pick : 1..N;
+    picking : boolean;
+    prisoner1 : prisoner (1, light, pick, picking, N);
+    prisoner2 : prisoner (2, light, pick, picking, N);
+    prisoner3 : prisoner (3, light, pick, picking, N);
+    prisoner4 : prisoner (4, light, pick, picking, N);
+    prisoner5 : prisoner (5, light, pick, picking, N);
+ASSIGN
+    init (light) := FALSE;
+    next (light) := switch xor light;
+    init (picking) := TRUE;
+    next (picking) := !picking;
+    init (pick) := {1,2,3,4,5};
+    -- The Warden picks a new prisoner every other round to give the prisoners enough time
+    -- to switch the light on/off if they want to.
+    next (pick) := 
+        case
+            !picking : pick;
+            TRUE : {1,2,3,4,5};
+        esac;
+
+-- Specifications:
+-- If a prisoner asserts, all prisoners have visited the room.
+LTLSPEC G (assert -> (
+    (O (prisoner1.state = visiting)) & 
+    (O (prisoner2.state = visiting)) &
+    (O (prisoner3.state = visiting)) &
+    (O (prisoner4.state = visiting)) &
+    (O (prisoner5.state = visiting)))
+);
+
+-- When all prisoners visited the room, one will eventually assert.
+LTLSPEC G (
+    ((O (prisoner1.state = visiting)) & 
+    (O (prisoner2.state = visiting)) &
+    (O (prisoner3.state = visiting)) &
+    (O (prisoner4.state = visiting)) &
+    (O (prisoner5.state = visiting))) -> F (assert)
+);
+
+-- At most one prisoner at a time visits the room.
+LTLSPEC G (!moreThanOneVisiting);
+
+-- The prisoners will assert at some point in time.
+LTLSPEC F (assert);
+
+-- How adding FAIRNESS pick = id to the prisoner module would change the results:
+--
+-- When adding the FAIRNESS pick = id constraint it forces the Warden to pick every prisoner
+-- infinitely often.
+--
+-- How the prisoners behave:
+-- Therefore, the Prisoners 2, 3, 4 and 5 will all at some point turn the light on.
+-- Also, Prisoner 1 will at some point have turned off the light 3 times and then eventually
+-- enter the room where the light is turned on the 4th time and consequently make the assertion.
+-- Therefore, the prisoners will always win the game.
+--
+-- Hence, all specifications hold true.

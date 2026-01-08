@@ -1,0 +1,14 @@
+There are 5 prisoners in solitary cells. There’s a central
+living room with one light bulb; this bulb is initially off. No
+prisoner can see the light bulb from his or her own cell.
+Every day, the warden picks a prisoner equally at random,
+and that prisoner visits the living room. While there, the
+prisoner can toggle the bulb if he or she wishes. Also, the
+prisoner has the option of asserting that all 5 prisoners
+have been to the living room by now. If this assertion is
+false, all 5 prisoners are shot. If it is true, however, all
+prisoners are set free. Thus, the assertion should only be
+made if the prisoner is certain of its validity. The prisoners
+are allowed to get together on the first night to discuss a
+plan. Once they’ve agreed on a plan, the game starts and
+they can’t meet again.
